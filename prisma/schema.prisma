@@ -1,0 +1,86 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String    @id @default(uuid())
+  email     String    @unique
+  password  String
+  name      String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  websites  Website[]
+}
+
+model Website {
+  id        String   @id @default(uuid())
+  url       String
+  name      String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  forms     Form[]
+
+  @@index([userId])
+}
+
+model Form {
+  id          String      @id @default(uuid())
+  name        String
+  url         String
+  websiteId   String
+  website     Website     @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  apiToken    String      @unique @default(uuid())
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  fields      FormField[]
+  leads       Lead[]
+
+  @@index([websiteId])
+  @@index([apiToken])
+}
+
+model FormField {
+  id          String   @id @default(uuid())
+  formId      String
+  form        Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
+  name        String
+  type        String
+  label       String?
+  placeholder String?
+  required    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([formId])
+}
+
+model Lead {
+  id        String     @id @default(uuid())
+  formId    String
+  form      Form       @relation(fields: [formId], references: [id], onDelete: Cascade)
+  createdAt DateTime   @default(now())
+  data      LeadData[]
+
+  @@index([formId])
+  @@index([createdAt])
+}
+
+model LeadData {
+  id        String   @id @default(uuid())
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  fieldName String
+  value     String
+  createdAt DateTime @default(now())
+
+  @@index([leadId])
+}
