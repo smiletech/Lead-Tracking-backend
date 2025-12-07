@@ -60,7 +60,7 @@ export const captureLead = async (req: Request, res: Response) => {
 // Get all leads with optional filters
 export const getLeads = async (req: AuthRequest, res: Response) => {
   try {
-    const { formId, startDate, endDate } = req.query;
+    const { formId, startDate, endDate, source } = req.query;
 
     // Build where clause
     const where: any = {};
@@ -83,12 +83,19 @@ export const getLeads = async (req: AuthRequest, res: Response) => {
       where.formId = formId;
     } else {
       // Get all forms for user's websites
-      const userForms = await prisma.form.findMany({
-        where: {
-          website: {
-            userId: req.userId!,
-          },
+      const formWhere: any = {
+        website: {
+          userId: req.userId!,
         },
+      };
+
+      // Add source filter if provided
+      if (source && (source === 'website' || source === 'form')) {
+        formWhere.source = source;
+      }
+
+      const userForms = await prisma.form.findMany({
+        where: formWhere,
         select: { id: true },
       });
 
@@ -115,6 +122,7 @@ export const getLeads = async (req: AuthRequest, res: Response) => {
           select: {
             id: true,
             name: true,
+            source: true,
             website: {
               select: {
                 id: true,
@@ -123,19 +131,19 @@ export const getLeads = async (req: AuthRequest, res: Response) => {
               },
             },
           },
-        },
+        } as any,
       },
       orderBy: { createdAt: 'desc' },
     });
 
-    // Transform data for easier consumption
-    const formattedLeads = leads.map((lead) => ({
+    const formattedLeads = leads.map((lead: any) => ({
       id: lead.id,
       formId: lead.formId,
       formName: lead.form.name,
+      source: lead.form.source,
       website: lead.form.website,
       createdAt: lead.createdAt,
-      data: lead.data.reduce((acc, item) => {
+      data: lead.data.reduce((acc: Record<string, string>, item: any) => {
         acc[item.fieldName] = item.value;
         return acc;
       }, {} as Record<string, string>),
@@ -171,15 +179,32 @@ export const getLeadsByForm = async (req: AuthRequest, res: Response) => {
       where: { formId },
       include: {
         data: true,
+        form: {
+          select: {
+            id: true,
+            name: true,
+            source: true,
+            website: {
+              select: {
+                id: true,
+                name: true,
+                url: true,
+              },
+            },
+          },
+        } as any,
       },
       orderBy: { createdAt: 'desc' },
     });
 
-    // Transform data
-    const formattedLeads = leads.map((lead) => ({
+    const formattedLeads = leads.map((lead: any) => ({
       id: lead.id,
+      formId: lead.formId,
+      formName: lead.form.name,
+      source: lead.form.source,
+      website: lead.form.website,
       createdAt: lead.createdAt,
-      data: lead.data.reduce((acc, item) => {
+      data: lead.data.reduce((acc: Record<string, string>, item: any) => {
         acc[item.fieldName] = item.value;
         return acc;
       }, {} as Record<string, string>),
